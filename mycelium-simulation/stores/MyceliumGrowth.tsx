@@ -1,4 +1,5 @@
 import { useMyceliumStore } from "./myceliumStore";
+import "./MyceliumGrowth.css";
 
 const MyceliumGrowth = () => {
   const { data, setParameter, grow, reset } = useMyceliumStore();

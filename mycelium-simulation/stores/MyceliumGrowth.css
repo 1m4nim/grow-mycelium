@@ -1,9 +1,17 @@
+body {
+  background-color: bisque;
+  margin: 0;
+  font-family: sans-serif;
+  color: black;
+}
+
 .mycelium-growth-container {
   padding: 20px;
 }
 
 h1 {
   text-align: center;
+  font-size: 24px;
 }
 
 label {
@@ -11,7 +19,7 @@ label {
   margin-top: 10px;
 }
 
-input[type+"number"] {
+input #number {
   margin-left: 10px;
   width: 100px;
   padding: 5px;
