@@ -1,0 +1,40 @@
+.mycelium-growth-container {
+  padding: 20px;
+}
+
+h1 {
+  text-align: center;
+}
+
+label {
+  display: block;
+  margin-top: 10px;
+}
+
+input[type+"number"] {
+  margin-left: 10px;
+  width: 100px;
+  padding: 5px;
+}
+
+button {
+  padding: 10px;
+  margin-top: 20px;
+  margin-right: 10px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: bisque;
+}
+
+h3 {
+  margin-top: 20px;
+  color: black;
+}
+
+img {
+  max-width: 100px;
+  height: auto;
+  margin-top: 10px;
+}
