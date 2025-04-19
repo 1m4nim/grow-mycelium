@@ -8,7 +8,12 @@ type GrowthParameters = {
   pH: number;
 };
 
-type GrowthStage = "spore" | "hyphae" | "mycelium" | "fruiting" | "mature";
+type GrowthStage =
+  | "spore(胞子)"
+  | "hyphae(菌糸)"
+  | "mycelium(菌糸体)"
+  | "fruiting(子実体形成)"
+  | "mature(成熟)";
 
 type FungusInfo = {
   name: string;
@@ -25,19 +30,16 @@ type MyceliumData = {
 
 type MyceliumStore = {
   data: MyceliumData;
-  setParameter: (key: keyof GrowthParameters, value: number) => void; // 型を明示的にしたい
+  setParameter: (key: keyof GrowthParameters, value: number) => void;
   grow: () => void;
   reset: () => void;
 };
 
 export const useMyceliumStore = create<MyceliumStore>()(
   persist<MyceliumStore>(
-    (
-      set: (fn: (state: MyceliumStore) => MyceliumStore) => void, //引数として渡される fn は、現在の状態を引数として受け取り、新しい状態を返す関数
-      get: () => MyceliumStore //現在の状態を取得するために使う
-    ) => ({
+    (set, get) => ({
       data: {
-        currentStage: "spore",
+        currentStage: "spore(胞子)",
         parameters: {
           temperature: 25,
           humidity: 70,
@@ -46,9 +48,9 @@ export const useMyceliumStore = create<MyceliumStore>()(
         },
         discoveredFungus: undefined,
       },
+
       setParameter: (key: keyof GrowthParameters, value: number) =>
-        void set((state) => ({
-          //前の状態 (state) を元にして新しい状態を作る関数を渡す
+        set((state) => ({
           ...state,
           data: {
             ...state.data,
@@ -58,29 +60,74 @@ export const useMyceliumStore = create<MyceliumStore>()(
             },
           },
         })),
-      grow: () => {
+
+      grow: async () => {
         const stageOrder: GrowthStage[] = [
-          "spore",
-          "hyphae",
-          "mycelium",
-          "fruiting",
-          "mature",
+          "spore(胞子)",
+          "hyphae(菌糸)",
+          "mycelium(菌糸体)",
+          "fruiting(子実体形成)",
+          "mature(成熟)",
         ];
-        const currentIndex = stageOrder.indexOf(get().data.currentStage); //現在のステージが配列の中で何番目かを調べている
+        const currentStage = get().data.currentStage;
+        const currentIndex = stageOrder.indexOf(currentStage);
+
         if (currentIndex < stageOrder.length - 1) {
-          set((state) => ({
-            ...state,
-            data: {
-              ...state.data,
-              currentStage: stageOrder[currentIndex + 1],
-            },
-          }));
+          const nextStage = stageOrder[currentIndex + 1];
+
+          // 「fruiting」に到達したらAPIを叩く
+          if (nextStage === "fruiting(子実体形成)") {
+            try {
+              const response = await fetch("/api/identify", {
+                body: JSON.stringify({ enviroment: get().data.parameters }),
+                headers: {
+                  "Content-Type": "application/json",
+                },
+              });
+
+              const result = await response.json();
+
+              const top = result?.suggestions?.[0];
+
+              const getRarity = () => {
+                const prob = top?.probability || 0;
+                if (prob > 0.9) return "common";
+                if (prob > 0.7) return "uncommon";
+                if (prob > 0.4) return "rare";
+                return "legendary";
+              };
+
+              set((state) => ({
+                ...state,
+                data: {
+                  ...state.data,
+                  currentStage: nextStage,
+                  discoveredFungus: {
+                    name: top?.name || "Unknown Fungus",
+                    description: top?.details?.description || "説明なし",
+                    imageUrl: top?.details?.image?.url || "/fallback.png",
+                    rarity: getRarity(),
+                  },
+                },
+              }));
+            } catch (error) {
+              console.log("識別失敗:", error);
+            }
+          } else {
+            set((state) => ({
+              ...state,
+              data: {
+                ...state.data,
+                currentStage: nextStage,
+              },
+            }));
+          }
         }
       },
-      reset: (): void =>
-        set((state: MyceliumStore) => ({
+      reset: () =>
+        set(() => ({
           data: {
-            currentStage: "spore",
+            currentStage: "spore(胞子)",
             parameters: {
               temperature: 25,
               humidity: 70,
@@ -89,11 +136,10 @@ export const useMyceliumStore = create<MyceliumStore>()(
             },
             discoveredFungus: undefined,
           },
-          grow: get().grow,
-          reset: get().reset,
-          setParameter: get().setParameter,
         })),
     }),
-    { name: "mycelium-storage" }
+    {
+      name: "mycelium-storage",
+    }
   )
 );
