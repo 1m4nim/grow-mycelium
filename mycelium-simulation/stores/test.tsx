@@ -1,4 +1,4 @@
-import { useMyceliumStore } from "./myceliumStore";
+import { useMyceliumStore } from "./MyceliumStore";
 
 const MyComponent = () => {
   const { data, setParameter, grow, reset } = useMyceliumStore();
