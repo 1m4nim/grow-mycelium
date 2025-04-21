@@ -83,7 +83,7 @@ export const canAdvanceStage = (
     params.nutrition >= cond.nutrition[0] &&
     params.nutrition <= cond.nutrition[1] &&
     params.pH >= cond.pH[0] &&
-    params.pH <= cond.pH[1] // pHのチェックも追加
+    params.pH <= cond.pH[1]
   );
 };
 

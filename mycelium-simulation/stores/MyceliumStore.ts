@@ -1,20 +1,23 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-type GrowthParameters = {
+// 成長パラメータの型
+export type GrowthParameters = {
   temperature: number;
   humidity: number;
   nutrition: number;
   pH: number;
 };
 
-type GrowthStage =
+// 成長ステージの型
+export type GrowthStage =
   | "spore(胞子)"
   | "hyphae(菌糸)"
   | "mycelium(菌糸体)"
   | "fruiting(子実体形成)"
   | "mature(成熟)";
 
+// 菌類の情報
 type FungusInfo = {
   name: string;
   rarity: "common" | "uncommon" | "rare" | "legendary";
@@ -22,21 +25,31 @@ type FungusInfo = {
   imageUrl: string;
 };
 
+// 成長データ
 type MyceliumData = {
   currentStage: GrowthStage;
   parameters: GrowthParameters;
   discoveredFungus?: FungusInfo;
 };
 
+// 成長履歴のエントリ型
+export type GrowthEntry = {
+  stage: GrowthStage;
+  params: GrowthParameters;
+  timestamp: Date;
+};
+
 type MyceliumStore = {
   data: MyceliumData;
   log: string;
+  growthHistory: GrowthEntry[];
   setParameter: (key: keyof GrowthParameters, value: number) => void;
   grow: () => void;
   reset: () => void;
   setLog: (msg: string) => void;
 };
 
+// 理想条件判定
 const isIdealCondition = (params: GrowthParameters): boolean => {
   return (
     params.temperature >= 20 &&
@@ -63,6 +76,7 @@ export const useMyceliumStore = create<MyceliumStore>()(
         discoveredFungus: undefined,
       },
       log: "育成スタート 🍄",
+      growthHistory: [],
 
       setParameter: (key, value) =>
         set((state) => ({
@@ -98,6 +112,17 @@ export const useMyceliumStore = create<MyceliumStore>()(
         if (currentIndex < stageOrder.length - 1) {
           const nextStage = stageOrder[currentIndex + 1];
 
+          const addGrowthHistory = (stage: GrowthStage) => {
+            const newEntry: GrowthEntry = {
+              stage,
+              params: { ...data.parameters },
+              timestamp: new Date(),
+            };
+            set((state) => ({
+              growthHistory: [...state.growthHistory, newEntry],
+            }));
+          };
+
           if (nextStage === "fruiting(子実体形成)") {
             try {
               const response = await fetch("/api/identify", {
@@ -132,18 +157,21 @@ export const useMyceliumStore = create<MyceliumStore>()(
                 },
                 log: "🍄 子実体が形成されました！",
               }));
+
+              addGrowthHistory(nextStage);
             } catch (error) {
               set({ log: "識別APIの呼び出しに失敗しました" });
             }
           } else {
             set((state) => ({
-              ...state,
               data: {
                 ...state.data,
                 currentStage: nextStage,
               },
               log: `✅ ${nextStage} に成長しました`,
             }));
+
+            addGrowthHistory(nextStage);
           }
         } else {
           set({ log: "✨ 成熟段階に到達しました" });
@@ -163,8 +191,16 @@ export const useMyceliumStore = create<MyceliumStore>()(
             discoveredFungus: undefined,
           },
           log: "リセットしました 🔁",
+          growthHistory: [],
         })),
     }),
-    { name: "mycelium-storage" }
+    {
+      name: "mycelium-storage",
+      partialize: (state) => ({
+        data: state.data,
+        log: state.log,
+        growthHistory: state.growthHistory,
+      }),
+    }
   )
 );
