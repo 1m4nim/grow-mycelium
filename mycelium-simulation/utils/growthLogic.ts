@@ -1,9 +1,9 @@
 import "./growthLogic.css";
 
 type GrowthParameters = {
-  tempreture: number;
-  humidity: number;
-  nutrition: number;
+  温度: number;
+  湿度: number;
+  栄養: number;
   pH: number; // pHを追加
 };
 
@@ -76,12 +76,12 @@ export const canAdvanceStage = (
 ): boolean => {
   const cond = stageConditions[stage];
   return (
-    params.tempreture >= cond.temperature[0] &&
-    params.tempreture <= cond.temperature[1] &&
-    params.humidity >= cond.humidity[0] &&
-    params.humidity <= cond.humidity[1] &&
-    params.nutrition >= cond.nutrition[0] &&
-    params.nutrition <= cond.nutrition[1] &&
+    params.温度 >= cond.temperature[0] &&
+    params.温度 <= cond.temperature[1] &&
+    params.湿度 >= cond.humidity[0] &&
+    params.湿度 <= cond.humidity[1] &&
+    params.栄養 >= cond.nutrition[0] &&
+    params.栄養 <= cond.nutrition[1] &&
     params.pH >= cond.pH[0] &&
     params.pH <= cond.pH[1]
   );
