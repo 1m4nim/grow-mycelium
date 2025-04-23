@@ -46,7 +46,7 @@ export type MyceliumStore = {
   };
   log: string;
   growthHistory: GrowthEntry[];
-  isGrowing: boolean; // ← 追加
+  isGrowing: boolean;
   setParameter: (key: keyof Parameters, value: number) => void;
   setLog: (msg: string) => void;
   grow: () => Promise<void>;

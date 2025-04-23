@@ -5,7 +5,7 @@ import GrowthHistoryButton from "./GrowthHistoryButton";
 import WikipediaFungusImage from "./WikipediaFungusImage";
 import useFungusDiscovery from "./useFungusDiscovery";
 import { Fungus } from "./MyceliumStore";
-import GrowthHistoryList from "./GrowthHistoryList"; // GrowthHistoryListをインポート
+import GrowthHistoryList from "./GrowthHistoryList";
 
 export interface GrowthParameters {
   温度: number;
