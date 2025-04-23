@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { getRandomFungusFromWikipedia } from "./wikipedia";
-import { translateToJapanese } from "./translator";
+import { translateToJapanese } from "../utils/translate";
 
 const useFungusDiscovery = (
   currentStage: string,
@@ -9,22 +9,29 @@ const useFungusDiscovery = (
   useEffect(() => {
     if (currentStage === "fruiting") {
       const discoverFungus = async () => {
-        const fungus = await getRandomFungusFromWikipedia();
-        if (!fungus) return;
+        try {
+          const fungus = await getRandomFungusFromWikipedia();
+          if (!fungus) {
+            console.warn("キノコの情報が見つかりませんでした。");
+            return;
+          }
 
-        const nameJa = await translateToJapanese(fungus.name);
-        const descJa = await translateToJapanese(fungus.description);
+          const nameJa = await translateToJapanese(fungus.name);
+          const descJa = await translateToJapanese(fungus.description);
 
-        setDiscoveredFungus({
-          name: nameJa,
-          description: descJa,
-          imageUrl: fungus.imageUrl,
-        });
+          setDiscoveredFungus({
+            name: nameJa,
+            description: descJa,
+            imageUrl: fungus.imageUrl,
+          });
+        } catch (error) {
+          console.error("キノコの発見に失敗しました:", error);
+        }
       };
 
       discoverFungus();
     }
-  }, [currentStage]);
+  }, [currentStage, setDiscoveredFungus]);
 };
 
 export default useFungusDiscovery;

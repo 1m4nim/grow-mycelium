@@ -46,13 +46,11 @@ export type MyceliumStore = {
   };
   log: string;
   growthHistory: GrowthEntry[];
-
+  isGrowing: boolean; // ← 追加
   setParameter: (key: keyof Parameters, value: number) => void;
   setLog: (msg: string) => void;
   grow: () => Promise<void>;
   reset: () => void;
-
-  // 履歴削除用関数
   deleteGrowthHistory: (timestamp: Date) => void;
 };
 
@@ -62,8 +60,8 @@ export const fetchFungusData = async (): Promise<Fungus> => {
     action: "query",
     format: "json",
     list: "categorymembers",
-    cmtitle: "Category:Edible_mushrooms", // エディブルキノコのカテゴリを指定
-    cmlimit: "50", // 最大50件のページを取得
+    cmtitle: "Category:Edible_mushrooms", // Edible mushrooms category
+    cmlimit: "50", // Limit to 50 pages
   });
 
   const categoryEndpoint = `${categoryUrl}?${categoryParams.toString()}`;
@@ -91,23 +89,23 @@ export const fetchFungusData = async (): Promise<Fungus> => {
       imageUrl: pageData.thumbnail?.source || "",
     };
   } catch (error) {
-    console.error("Wikipediaカテゴリ取得エラー:", error);
+    console.error("Wikipedia category fetch error:", error);
 
     return {
-      name: "不明なキノコ",
-      description: "情報を取得できませんでした。",
+      name: "Unknown Fungus",
+      description: "Unable to fetch data.",
       imageUrl: "",
     };
   }
 };
 
-// persist に型付け
+// persist with types
 type MyceliumPersist = (
   config: StateCreator<MyceliumStore>,
   options: PersistOptions<MyceliumStore, Partial<MyceliumStore>>
 ) => StateCreator<MyceliumStore>;
 
-// Zustand + persist ストア
+// Zustand + persist store
 export const useMyceliumStore = create<MyceliumStore>(
   (persist as MyceliumPersist)(
     (set, get) => ({
@@ -167,8 +165,9 @@ export const useMyceliumStore = create<MyceliumStore>(
         },
       },
 
-      log: "育成スタート 🍄 Start Growing!",
+      log: "Growing Start 🍄 Start Growing!",
       growthHistory: [],
+      isGrowing: false, // ← Added here
 
       setParameter: (key, value) => {
         set((state) => ({
@@ -190,6 +189,9 @@ export const useMyceliumStore = create<MyceliumStore>(
       },
 
       grow: async () => {
+        if (get().isGrowing) return; // Ignore if already growing
+        set({ isGrowing: true }); // Set as growing
+
         const data = get().data;
         const stageOrder: GrowthStage[] = [
           "spore(胞子)",
@@ -200,18 +202,19 @@ export const useMyceliumStore = create<MyceliumStore>(
         ];
         const currentIndex = stageOrder.indexOf(data.currentStage);
 
+        const addGrowthHistory = (stage: GrowthStage) => {
+          const newEntry: GrowthEntry = {
+            stage,
+            params: { ...data.parameters },
+            timestamp: new Date(),
+          };
+          set((state) => ({
+            growthHistory: [...state.growthHistory, newEntry],
+          }));
+        };
+
         if (currentIndex < stageOrder.length - 1) {
           const nextStage = stageOrder[currentIndex + 1];
-          const addGrowthHistory = (stage: GrowthStage) => {
-            const newEntry: GrowthEntry = {
-              stage,
-              params: { ...data.parameters },
-              timestamp: new Date(),
-            };
-            set((state) => ({
-              growthHistory: [...state.growthHistory, newEntry],
-            }));
-          };
 
           if (nextStage === "fruiting(子実体形成)") {
             setTimeout(async () => {
@@ -222,7 +225,8 @@ export const useMyceliumStore = create<MyceliumStore>(
                   currentStage: nextStage,
                   discoveredFungus: randomFungus,
                 },
-                log: `🍄 子実体形成 (Fruiting Stage)! 発見: ${randomFungus.name}`,
+                log: `🍄 Fruiting Stage! Discovered: ${randomFungus.name}`,
+                isGrowing: false,
               }));
               addGrowthHistory(nextStage);
             }, 60000);
@@ -232,13 +236,21 @@ export const useMyceliumStore = create<MyceliumStore>(
                 ...state.data,
                 currentStage: nextStage,
               },
-              log: `✅ 成長ステージ: ${nextStage} (Grew to ${nextStage})`,
+              log: `✅ Growth Stage: ${nextStage} (Grew to ${nextStage})`,
             }));
             addGrowthHistory(nextStage);
+
+            // Stop autoGrow when reaching mature stage
+            if (nextStage === "mature(成熟)") {
+              get().data.stopAutoGrow();
+            }
+
+            set({ isGrowing: false });
           }
         } else {
           set(() => ({
-            log: "✨ 成熟段階に到達しました (Fully Matured!)",
+            log: "✨ Reached mature stage (Fully Matured!)",
+            isGrowing: false,
           }));
         }
       },
@@ -260,8 +272,9 @@ export const useMyceliumStore = create<MyceliumStore>(
             stopAutoGrow: get().data.stopAutoGrow,
             setDiscoveredFungus: get().data.setDiscoveredFungus,
           },
-          log: "🔁 リセット完了 (Reset Complete)",
+          log: "🔁 Reset Complete",
           growthHistory: [],
+          isGrowing: false, // ← Reset to false
         }));
       },
 
