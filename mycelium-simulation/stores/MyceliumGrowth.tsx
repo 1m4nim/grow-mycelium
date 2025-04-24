@@ -76,18 +76,24 @@ const MyceliumGrowth = () => {
 
   // Wikipediaから菌類の情報を取得
   useEffect(() => {
-    if (data.currentStage !== "fruiting(子実体形成)" || !data.discoveredFungus)
+    console.log("Stage:", data.currentStage);
+    console.log("DiscoveredFungus:", data.discoveredFungus);
+
+    if (
+      fungusInfo ||
+      data.currentStage !== "fruiting(子実体形成)" ||
+      !data.discoveredFungus
+    ) {
       return;
+    }
 
     const fetchFungusInfo = async () => {
       try {
-        // 英語のWikipediaからランダムなページを取得
         const randomPageRes = await fetch(
           `https://en.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&format=json&origin=*`
         );
         const randomTitle = (await randomPageRes.json()).query.random[0].title;
 
-        // ランダムページの詳細情報取得
         const pageRes = await fetch(
           `https://en.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages&exintro=&explaintext=&titles=${randomTitle}&format=json&origin=*`
         );
@@ -96,11 +102,9 @@ const MyceliumGrowth = () => {
         const pageKey = Object.keys(pages)[0];
         const page = pages[pageKey];
 
-        // 英語の要約と画像
         const englishExtract = page.extract || "No English description found.";
         const image = page.thumbnail?.source || "";
 
-        // 日本語のWikipedia検索
         const jaSearchRes = await fetch(
           `https://ja.wikipedia.org/w/api.php?action=query&list=search&srsearch=${randomTitle}&format=json&origin=*`
         );
@@ -119,7 +123,6 @@ const MyceliumGrowth = () => {
           jaDescription = jaPage.extract || jaDescription;
         }
 
-        // fungusInfoにセット
         setFungusInfo({
           name: randomTitle,
           image,
@@ -132,7 +135,7 @@ const MyceliumGrowth = () => {
     };
 
     fetchFungusInfo();
-  }, [data.currentStage, data.discoveredFungus]);
+  }, [data.currentStage, data.discoveredFungus, fungusInfo]);
 
   return (
     <div className="mycelium-growth-container">

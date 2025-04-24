@@ -12,9 +12,8 @@ const fetchRandomFungusData = async (attempts = 5): Promise<any> => {
     const language = Math.random() < 0.5 ? "ja" : "en";
     const url = `https://${language}.wikipedia.org/w/api.php`;
 
-    const res = await fetch(
-      `${url}?action=query&format=json&list=random&rnlimit=1&rnnamespace=0&origin=*`
-    );
+    const res = await fetch(`/api/fetchWikipedia?title=キノコ`);
+
     const data = await res.json();
 
     const pageId = data.query.random[0].id;

@@ -8,6 +8,8 @@ const WikipediaFungusImage: React.FC<Props> = ({ name }) => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!name) return;
+
     const fetchImageFromWikipedia = async (lang: "ja" | "en") => {
       try {
         const response = await fetch(
@@ -32,11 +34,15 @@ const WikipediaFungusImage: React.FC<Props> = ({ name }) => {
     };
 
     const fetchImage = async () => {
+      console.log("Fetching image for:", name);
       const jaImage = await fetchImageFromWikipedia("ja");
+      console.log("Japanese image URL:", jaImage);
+
       if (jaImage) {
         setImageUrl(jaImage);
       } else {
         const enImage = await fetchImageFromWikipedia("en");
+        console.log("English image URL:", enImage);
         setImageUrl(enImage);
       }
     };
