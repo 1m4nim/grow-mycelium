@@ -5,8 +5,10 @@ import MyceliumGrowth from "../mycelium-simulation/stores/MyceliumGrowth";
 import GrowthHistory from "../mycelium-simulation/stores/GrowthHistoryButton";
 
 // WikipediaのAPIからランダムなきのこの情報を取得する
-const fetchRandomFungusData = async () => {
+const fetchRandomFungusData = async (attempts = 5): Promise<any> => {
   try {
+    if (attempts <= 0) return null; // 再試行回数がゼロに達した場合、再帰を停止
+
     // 日本語版か英語版をランダムで選択
     const language = Math.random() < 0.5 ? "ja" : "en";
     const url = `https://${language}.wikipedia.org/w/api.php`;
@@ -38,7 +40,7 @@ const fetchRandomFungusData = async () => {
       return { title: pageTitle, content: pageContent, imageUrl: pageImage };
     } else {
       // キノコに関連しないページが返された場合、再度ランダムに取得
-      return fetchRandomFungusData();
+      return fetchRandomFungusData(attempts - 1); // 再試行
     }
   } catch (error) {
     console.error("Wikipedia APIエラー:", error);
@@ -64,7 +66,7 @@ export default function Home() {
         if (data) {
           setFungus({
             name: data.title,
-            imageUrl: data.imageUrl,
+            imageUrl: data.imageUrl || "/default.png", // 画像がない場合のデフォルト画像
             description: data.content,
           });
         } else {
@@ -83,7 +85,7 @@ export default function Home() {
 
   return (
     <main style={{ padding: "1rem" }}>
-      <MyceliumGrowth />
+      {/* <MyceliumGrowth /> */}
       {/* <GrowthHistory /> */}
       <br />
 
@@ -107,7 +109,6 @@ export default function Home() {
             alt={fungus.name}
             style={{ maxWidth: "300px", borderRadius: "10px" }}
           />
-          <p>{fungus.description}</p>
         </div>
       ) : null}
     </main>

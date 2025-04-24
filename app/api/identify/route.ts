@@ -36,18 +36,19 @@ async function getFungusInfoWithLangUntilImage(
       )}`
     );
     const data = await res.json();
-
     const image = data?.thumbnail?.source;
-    if (!image) continue; // 画像がなければ再試行
+    const description = data?.extract;
+
+    if (!image || !description) continue;
 
     const translatedDescription =
-      lang === "en" ? await translateToJapanese(data.extract) : null;
+      lang === "en" ? await translateToJapanese(description) : null;
 
     return {
       name: data.title,
       lang,
       imageUrl: image,
-      description: data.extract,
+      description,
       jaTranslation: translatedDescription,
     };
   }
