@@ -89,18 +89,34 @@ export const useMyceliumStore = create<MyceliumStore>((set) => ({
     // 現在のステージから次のステージへ遷移
     set((state) => {
       const next = nextStage[state.data.currentStage as GrowthStage];
+      const newEntry: GrowthEntry = {
+        stage: next as GrowthStage,
+        params: state.data.parameters,
+        timestamp: new Date(),
+      };
       return {
         data: {
           ...state.data,
-          currentStage: next as GrowthStage, // nextをGrowthStageとして明示的にキャスト
+          currentStage: next as GrowthStage,
         },
+        growthHistory: [...state.growthHistory, newEntry],
         isGrowing: false,
       };
     });
   },
 
   reset: () =>
-    set({ data: defaultData, log: "", growthHistory: [], isGrowing: false }),
+    set((state) => {
+      if (state.data.autoGrowIntervalId) {
+        clearInterval(state.data.autoGrowIntervalId);
+      }
+      return {
+        data: { ...defaultData },
+        log: "",
+        growthHistory: [],
+        isGrowing: false,
+      };
+    }),
 
   deleteGrowthHistory: (timestamp: Date) =>
     set((state) => ({
@@ -118,6 +134,7 @@ export const useMyceliumStore = create<MyceliumStore>((set) => ({
       const page = data.query.pages;
       const pageId = Object.keys(page)[0];
       const extract = page[pageId].extract;
+      const imageUrl = page[pageId].thumbnail?.source || ""; // Wikipediaの画像URLを動的に取得
 
       // 各ステージごとに説明と画像を設定
       let fungusInfo = { name: "", description: "", imageUrl: "" };

@@ -11,7 +11,6 @@ const MushroomInfo: React.FC = () => {
   });
   const [exampleUsage, setExampleUsage] = useState("");
 
-  // 使用例を生成する関数名を修正（関数名一致）
   const generateExampleUsage = async () => {
     const convertedParams = {
       temperature: params.温度,
