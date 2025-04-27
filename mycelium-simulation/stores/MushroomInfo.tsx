@@ -1,4 +1,4 @@
-import { getMushroomFromWikipedia } from "../utils/wikiFetcher";
+import { getMushroomFromWikipedia } from "../utils/WikiFetcher";
 import React, { useState } from "react";
 
 const MushroomInfo: React.FC = () => {

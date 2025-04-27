@@ -76,66 +76,67 @@ const MyceliumGrowth = () => {
 
   // Wikipediaから菌類の情報を取得
   useEffect(() => {
-    console.log("Stage:", data.currentStage);
-    console.log("DiscoveredFungus:", data.discoveredFungus);
-
-    if (
-      fungusInfo ||
-      data.currentStage !== "fruiting(子実体形成)" ||
-      !data.discoveredFungus
-    ) {
-      return;
-    }
-
-    const fetchFungusInfo = async () => {
-      try {
-        const randomPageRes = await fetch(
-          `https://en.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&format=json&origin=*`
-        );
-        const randomTitle = (await randomPageRes.json()).query.random[0].title;
-
-        const pageRes = await fetch(
-          `https://en.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages&exintro=&explaintext=&titles=${randomTitle}&format=json&origin=*`
-        );
-        const pageData = await pageRes.json();
-        const pages = pageData.query.pages;
-        const pageKey = Object.keys(pages)[0];
-        const page = pages[pageKey];
-
-        const englishExtract = page.extract || "No English description found.";
-        const image = page.thumbnail?.source || "";
-
-        const jaSearchRes = await fetch(
-          `https://ja.wikipedia.org/w/api.php?action=query&list=search&srsearch=${randomTitle}&format=json&origin=*`
-        );
-        const jaSearchData = await jaSearchRes.json();
-        let jaDescription = "日本語での説明は見つかりませんでした。";
-
-        if (jaSearchData.query.search.length > 0) {
-          const jaTitle = jaSearchData.query.search[0].title;
-          const jaPageRes = await fetch(
-            `https://ja.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=&explaintext=&titles=${jaTitle}&format=json&origin=*`
+    if (data.currentStage === "fruiting(子実体形成)" && !fungusInfo) {
+      const fetchFungusInfo = async () => {
+        try {
+          // WikipediaのFungiカテゴリ内のページをランダムに取得
+          const randomPageRes = await fetch(
+            `https://en.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=Category:Fungi&cmlimit=10&format=json&origin=*`
           );
-          const jaPageData = await jaPageRes.json();
-          const jaPages = jaPageData.query.pages;
-          const jaPageKey = Object.keys(jaPages)[0];
-          const jaPage = jaPages[jaPageKey];
-          jaDescription = jaPage.extract || jaDescription;
+          const randomPageData = await randomPageRes.json();
+          const randomPages = randomPageData.query.categorymembers;
+
+          // ランダムに1つのページを選択
+          const randomIndex = Math.floor(Math.random() * randomPages.length);
+          const randomTitle = randomPages[randomIndex]?.title;
+
+          if (randomTitle) {
+            const pageRes = await fetch(
+              `https://en.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages&exintro=&explaintext=&titles=${randomTitle}&format=json&origin=*`
+            );
+            const pageData = await pageRes.json();
+            const pages = pageData.query.pages;
+            const pageKey = Object.keys(pages)[0];
+            const page = pages[pageKey];
+
+            const englishExtract =
+              page.extract || "No English description found.";
+            const image = page.thumbnail?.source || "";
+
+            const jaSearchRes = await fetch(
+              `https://ja.wikipedia.org/w/api.php?action=query&list=search&srsearch=${randomTitle}&format=json&origin=*`
+            );
+            const jaSearchData = await jaSearchRes.json();
+            let jaDescription = "日本語での説明は見つかりませんでした。";
+
+            if (jaSearchData.query.search.length > 0) {
+              const jaTitle = jaSearchData.query.search[0].title;
+              const jaPageRes = await fetch(
+                `https://ja.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=&explaintext=&titles=${jaTitle}&format=json&origin=*`
+              );
+              const jaPageData = await jaPageRes.json();
+              const jaPages = jaPageData.query.pages;
+              const jaPageKey = Object.keys(jaPages)[0];
+              const jaPage = jaPages[jaPageKey];
+              jaDescription = jaPage.extract || jaDescription;
+            }
+
+            // ここでセットした内容はランダムに選ばれたキノコの情報
+            setFungusInfo({
+              name: randomTitle,
+              image,
+              description: jaDescription,
+              englishDescription: englishExtract,
+            });
+          }
+        } catch (err) {
+          console.error("Wikipediaの取得エラー:", err);
         }
+      };
 
-        setFungusInfo({
-          name: randomTitle,
-          image,
-          description: jaDescription,
-          englishDescription: englishExtract,
-        });
-      } catch (err) {
-        console.error("Wikipediaの取得エラー:", err);
-      }
-    };
-
-    fetchFungusInfo();
-  }, [data.currentStage, data.discoveredFungus, fungusInfo]);
+      fetchFungusInfo();
+    }
+  }, [data.currentStage, fungusInfo]);
 
   return (
     <div className="mycelium-growth-container">
@@ -181,7 +182,10 @@ const MyceliumGrowth = () => {
         </button>
 
         {data.currentStage === "mature(成熟)" && (
-          <button onClick={reset} style={{ marginTop: "1rem" }}>
+          <button
+            onClick={reset}
+            style={{ marginTop: "1rem", fontSize: "24px" }}
+          >
             🔁 リセット
           </button>
         )}

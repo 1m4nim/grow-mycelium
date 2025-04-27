@@ -49,8 +49,8 @@ export const fetchWikiInfo = async (
     title
   )}&piprop=thumbnail&pithumbsize=400&origin=*`;
 
-  const res = await fetch(`/api/fetchWikipedia?title=キノコ`);
-  const json = await res.json();
+  const response = await fetch(url);
+  const json = await response.json();
   const pages = json.query.pages;
   const page = Object.values(pages)[0] as any;
 
