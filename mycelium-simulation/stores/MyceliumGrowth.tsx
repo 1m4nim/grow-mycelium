@@ -35,6 +35,28 @@ const paramRange: Record<
   pH: { min: 0, max: 14, step: 0.1 },
 };
 
+// DeepL翻訳API
+const translateToJapanese = async (text: string): Promise<string> => {
+  const apiKey = "8ded8e94-0948-4df3-996f-08e80de9dcaf:fx";
+  const response = await fetch("https://api-free.deepl.com/v2/translate", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `DeepL-Auth-Key ${apiKey}`,
+    },
+    body: `text=${encodeURIComponent(text)}&target_lang=JA`,
+  });
+
+  const data = await response.json();
+  return data.translations[0].text;
+};
+
+// テキスト要約関数
+const summarizeText = (text: string): string => {
+  // とりあえず最初の200文字だけ返す簡易版
+  return text.length > 200 ? text.slice(0, 200) + "..." : text;
+};
+
 const MyceliumGrowth = () => {
   const { data, setParameter, grow, reset } = useMyceliumStore();
   const [fungusInfo, setFungusInfo] = useState<{
@@ -42,12 +64,16 @@ const MyceliumGrowth = () => {
     image: string;
     description: string;
     englishDescription: string;
+    englishExtract: string;
+    japaneseExtract: string;
+    imageJa: string;
   } | null>(null);
   const [discoveredFungus, setDiscoveredFungus] = useState<Fungus | null>(null);
   const [growthHistory, setGrowthHistory] = useState<GrowthHistoryEntry[]>([]);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [translatedSummary, setTranslatedSummary] = useState<string>("");
 
-  // 自動成長のタイマー制御
+  // 自動成長のタイマー
   useEffect(() => {
     if (data.currentStage === "mature(成熟)") {
       clearInterval(intervalRef.current!);
@@ -59,9 +85,10 @@ const MyceliumGrowth = () => {
     return () => clearInterval(interval);
   }, [data.currentStage, grow]);
 
+  // 成長ステージに応じたキノコ発見
   useFungusDiscovery(data.currentStage, setDiscoveredFungus);
 
-  // 成長手動トリガー & 履歴保存
+  // 成長ボタン
   const handleGrow = () => {
     grow();
     setGrowthHistory((prev) => [
@@ -74,69 +101,81 @@ const MyceliumGrowth = () => {
     ]);
   };
 
-  // Wikipediaから菌類の情報を取得
-  useEffect(() => {
-    if (data.currentStage === "fruiting(子実体形成)" && !fungusInfo) {
-      const fetchFungusInfo = async () => {
-        try {
-          // WikipediaのFungiカテゴリ内のページをランダムに取得
-          const randomPageRes = await fetch(
-            `https://en.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=Category:Fungi&cmlimit=10&format=json&origin=*`
-          );
-          const randomPageData = await randomPageRes.json();
-          const randomPages = randomPageData.query.categorymembers;
+  // Wikipediaからランダムな菌類情報を取得
+  const fetchFungusInfo = async () => {
+    try {
+      // 1. 「Fungi」カテゴリからサブカテゴリも含めて取得
+      const categoryRes = await fetch(
+        `https://en.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=Category:Fungi&cmtype=subcat&cmlimit=500&format=json&origin=*`
+      );
+      const categoryData = await categoryRes.json();
+      const subcategories = categoryData.query.categorymembers;
 
-          // ランダムに1つのページを選択
-          const randomIndex = Math.floor(Math.random() * randomPages.length);
-          const randomTitle = randomPages[randomIndex]?.title;
+      // サブカテゴリからランダムに選ぶ
+      const randomCategory =
+        subcategories[Math.floor(Math.random() * subcategories.length)];
 
-          if (randomTitle) {
-            const pageRes = await fetch(
-              `https://en.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages&exintro=&explaintext=&titles=${randomTitle}&format=json&origin=*`
-            );
-            const pageData = await pageRes.json();
-            const pages = pageData.query.pages;
-            const pageKey = Object.keys(pages)[0];
-            const page = pages[pageKey];
+      console.log("選ばれたサブカテゴリ:", randomCategory.title);
 
-            const englishExtract =
-              page.extract || "No English description found.";
-            const image = page.thumbnail?.source || "";
+      // 2. サブカテゴリ内のページを取得
+      const pagesRes = await fetch(
+        `https://en.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=${randomCategory.title}&cmlimit=10&format=json&origin=*`
+      );
+      const pagesData = await pagesRes.json();
+      const pages = pagesData.query.categorymembers;
 
-            const jaSearchRes = await fetch(
-              `https://ja.wikipedia.org/w/api.php?action=query&list=search&srsearch=${randomTitle}&format=json&origin=*`
-            );
-            const jaSearchData = await jaSearchRes.json();
-            let jaDescription = "日本語での説明は見つかりませんでした。";
+      // ランダムに1つのページを選ぶ
+      const randomPage = pages[Math.floor(Math.random() * pages.length)];
+      console.log("選ばれたページ:", randomPage.title);
 
-            if (jaSearchData.query.search.length > 0) {
-              const jaTitle = jaSearchData.query.search[0].title;
-              const jaPageRes = await fetch(
-                `https://ja.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=&explaintext=&titles=${jaTitle}&format=json&origin=*`
-              );
-              const jaPageData = await jaPageRes.json();
-              const jaPages = jaPageData.query.pages;
-              const jaPageKey = Object.keys(jaPages)[0];
-              const jaPage = jaPages[jaPageKey];
-              jaDescription = jaPage.extract || jaDescription;
-            }
+      // 3. Wikipediaページの詳細を取得
+      const pageRes = await fetch(
+        `https://en.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages&exintro=&explaintext=&titles=${randomPage.title}&format=json&origin=*`
+      );
+      const pageData = await pageRes.json();
+      const pageKey = Object.keys(pageData.query.pages)[0];
+      const page = pageData.query.pages[pageKey];
 
-            // ここでセットした内容はランダムに選ばれたキノコの情報
-            setFungusInfo({
-              name: randomTitle,
-              image,
-              description: jaDescription,
-              englishDescription: englishExtract,
-            });
-          }
-        } catch (err) {
-          console.error("Wikipediaの取得エラー:", err);
-        }
-      };
+      const englishExtract = page.extract || "No English description found.";
+      const image = page.thumbnail?.source || "";
 
-      fetchFungusInfo();
+      // 4. 日本語版Wikipediaにアクセス
+      const pageJaRes = await fetch(
+        `https://ja.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages&exintro=&explaintext=&titles=${randomPage.title}&format=json&origin=*`
+      );
+      const pageJaData = await pageJaRes.json();
+      const pageJaKey = Object.keys(pageJaData.query.pages)[0];
+      const pageJa = pageJaData.query.pages[pageJaKey];
+
+      const japaneseExtract =
+        pageJa.extract || "日本語の説明が見つかりませんでした。";
+      const imageJa = pageJa.thumbnail?.source || "";
+
+      // 5. 結果を表示
+      setFungusInfo({
+        name: randomPage.title,
+        image,
+        description: japaneseExtract,
+        englishDescription: englishExtract,
+        englishExtract,
+        japaneseExtract,
+        imageJa,
+      });
+    } catch (err) {
+      console.error("Wikipedia取得エラー:", err);
     }
-  }, [data.currentStage, fungusInfo]);
+  };
+
+  useEffect(() => {
+    fetchFungusInfo(); // コンポーネントが初めてマウントされたときに最初のキノコ情報を取得
+  }, []); // 最初のマウント時のみ実行
+
+  // リセット時にキノコ情報をリセット
+  const handleReset = () => {
+    reset();
+    setFungusInfo(null); // リセットしてキノコ情報を初期化
+    fetchFungusInfo(); // 新しいキノコ情報を取得
+  };
 
   return (
     <div className="mycelium-growth-container">
@@ -183,7 +222,7 @@ const MyceliumGrowth = () => {
 
         {data.currentStage === "mature(成熟)" && (
           <button
-            onClick={reset}
+            onClick={handleReset}
             style={{ marginTop: "1rem", fontSize: "24px" }}
           >
             🔁 リセット
@@ -211,10 +250,6 @@ const MyceliumGrowth = () => {
               <strong>日本語の説明:</strong>
             </p>
             <p>{fungusInfo.description}</p>
-            <p>
-              <strong>English Summary:</strong>
-            </p>
-            <p>{fungusInfo.englishDescription}</p>
           </section>
         )}
 
