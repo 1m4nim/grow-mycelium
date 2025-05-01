@@ -5,44 +5,26 @@ import MyceliumGrowth from "../mycelium-simulation/stores/MyceliumGrowth";
 import GrowthHistory from "../mycelium-simulation/stores/GrowthHistoryButton";
 
 // WikipediaのAPIからランダムなきのこの情報を取得する関数
-const fetchRandomFungusData = async (attempts = 5): Promise<any> => {
+const fetchRandomFungusData = async () => {
   try {
-    if (attempts <= 0) return null;
-
-    const language = Math.random() < 0.5 ? "ja" : "en";
-    const url = `https://${language}.wikipedia.org/w/api.php`;
-
-    const res = await fetch(`/api/fetchWikipedia?title=キノコ`);
-
+    const res = await fetch(
+      `https://en.wikipedia.org/w/api.php?action=query&list=random&rnlimit=1&format=json&origin=*`
+    );
     const data = await res.json();
 
-    const pageId = data.query.random[0].id;
-    const pageTitle = data.query.random[0].title;
-
-    const pageDetailsRes = await fetch(
-      `${url}?action=query&format=json&prop=extracts|pageimages&exintro&explaintext&pageids=${pageId}&piprop=thumbnail&pithumbsize=300&origin=*`
-    );
-    const pageDetailsData = await pageDetailsRes.json();
-
-    const page = pageDetailsData.query.pages[pageId];
-    const pageContent = page.extract;
-    const pageImage = page?.thumbnail?.source || "";
-
-    if (
-      pageTitle.toLowerCase().includes("mushroom") ||
-      pageTitle.includes("キノコ")
-    ) {
-      return { title: pageTitle, content: pageContent, imageUrl: pageImage };
-    } else {
-      return fetchRandomFungusData(attempts - 1);
+    // randomが存在するかどうかの確認
+    if (!data.query || !data.query.random || !data.query.random[0]) {
+      throw new Error("ランダムページの取得に失敗しました。");
     }
+
+    const randomPage = data.query.random[0].title;
+    // 取得したページ情報を元に次の処理を行う
+    console.log(randomPage);
   } catch (error) {
     console.error("Wikipedia APIエラー:", error);
-    return null;
   }
 };
 
-// 👇 これが React コンポーネントとしての Page 本体
 const Page = () => {
   const [fungus, setFungus] = useState<any>(null);
 

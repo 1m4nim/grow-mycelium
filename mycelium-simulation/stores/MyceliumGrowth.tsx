@@ -6,7 +6,6 @@ import "./MyceliumGrowth.css";
 import { Fungus } from "./MyceliumStore";
 import WikipediaFungusImage from "./WikipediaFungusImage";
 
-// 成長パラメータと範囲設定
 export interface GrowthParameters {
   温度: number;
   湿度: number;
@@ -21,7 +20,6 @@ export type GrowthStage =
   | "fruiting(子実体形成)"
   | "mature(成熟)";
 
-// 成長履歴
 export type GrowthHistoryEntry = {
   stage: GrowthStage;
   params: GrowthParameters;
@@ -39,13 +37,10 @@ const MyceliumGrowth = () => {
   const [discoveredFungus, setDiscoveredFungus] = useState<Fungus | null>(null);
   const [growthHistory, setGrowthHistory] = useState<GrowthHistoryEntry[]>([]);
 
-  // 菌類発見のカスタムフック
   useFungusDiscovery(data.currentStage, setDiscoveredFungus);
 
-  // Wikipedia からの情報取得
   const fetchFungusInfoByName = async (fungusName: string) => {
     try {
-      // Wikipedia APIを使って情報を取得
       const pageRes = await fetch(
         `https://en.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages&exintro=&explaintext=&titles=${encodeURIComponent(
           fungusName
@@ -77,34 +72,24 @@ const MyceliumGrowth = () => {
     }
   };
 
-  // 自動成長のためのsetInterval
   useEffect(() => {
-    // 成長が成熟になったら自動成長を止める
     if (data.currentStage === "mature(成熟)") return;
-
     const intervalId = setInterval(() => {
-      grow(); // 成長を進める
-    }, 5000); // 5秒ごとに成長
-
-    // クリーンアップ
-    return () => {
-      clearInterval(intervalId); // コンポーネントがアンマウントされたらintervalをクリア
-    };
+      grow();
+    }, 5000);
+    return () => clearInterval(intervalId);
   }, [data.currentStage, grow]);
 
-  // 成長ステージ変更時に情報を取得
   useEffect(() => {
     if (discoveredFungus) {
-      // 発見された菌類の名前を使って情報を取得
       fetchFungusInfoByName(discoveredFungus.name);
     }
-  }, [data.currentStage, discoveredFungus]); // 依存配列に discoveredFungus を追加
+  }, [data.currentStage, discoveredFungus]);
 
-  // リセットボタンが押されたとき
   const handleReset = () => {
     reset();
-    setFungusInfo(null); // 菌類情報をリセット
-    setDiscoveredFungus(null); // 発見された菌類情報もリセット
+    setFungusInfo(null);
+    setDiscoveredFungus(null);
   };
 
   return (
@@ -122,9 +107,9 @@ const MyceliumGrowth = () => {
               <label>{label}</label>
               <input
                 type="range"
-                min={0}
-                max={100}
-                step={1}
+                min={param === "pH" ? 0 : 0}
+                max={param === "pH" ? 14 : 100}
+                step={param === "pH" ? 0.1 : 1}
                 value={data.parameters[param]}
                 onChange={(e) => setParameter(param, Number(e.target.value))}
               />
@@ -143,10 +128,12 @@ const MyceliumGrowth = () => {
           <p>
             <strong>名前:</strong> {fungusInfo.name}
           </p>
-          <WikipediaFungusImage name={fungusInfo.name} />
+          <WikipediaFungusImage name={fungusInfo.name} src={fungusInfo.image} />
           <p>
             <strong>日本語の説明:</strong>
-            {fungusInfo.description}
+            {fungusInfo.description
+              ? fungusInfo.description
+              : "説明はありません"}
           </p>
           <p>
             <strong>English Summary:</strong>

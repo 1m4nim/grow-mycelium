@@ -1,23 +1,19 @@
-// WikipediaFungusImage.tsx
 import React from "react";
 
 type WikipediaFungusImageProps = {
   name: string;
+  src: string;
 };
 
 const WikipediaFungusImage: React.FC<WikipediaFungusImageProps> = ({
   name,
+  src,
 }) => {
+  if (!src) return null;
+
   return (
     <div>
-      <img
-        src={`https://en.wikipedia.org/wiki/File:${name.replace(
-          /\s+/g,
-          "_"
-        )}.jpg`}
-        alt={name}
-        style={{ maxWidth: "100%", height: "auto" }}
-      />
+      <img src={src} alt={name} style={{ maxWidth: "100%", height: "auto" }} />
     </div>
   );
 };
