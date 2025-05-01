@@ -1,10 +1,8 @@
-import "./growthLogic.css";
-
 type GrowthParameters = {
   温度: number;
   湿度: number;
   栄養: number;
-  pH: number; // pHを追加
+  pH: number;
 };
 
 type GrowthStage =
@@ -14,7 +12,7 @@ type GrowthStage =
   | "fruiting(子実体形成)"
   | "complete(成熟)";
 
-// 成長段階の配列（順序付き）
+// 成長段階の配列
 export const stages: GrowthStage[] = [
   "spore(胞子)",
   "hyphae(菌糸)",
@@ -23,45 +21,45 @@ export const stages: GrowthStage[] = [
   "complete(成熟)",
 ];
 
-// 各段階に必要な条件
+// 各段階に必要な条件（参考用。現在は使用されません）
 export const stageConditions: Record<
   GrowthStage,
   {
     temperature: [number, number];
     humidity: [number, number];
     nutrition: [number, number];
-    pH: [number, number]; // pHの範囲を追加
+    pH: [number, number];
   }
 > = {
   "spore(胞子)": {
     temperature: [20, 25],
     humidity: [80, 90],
     nutrition: [0, 20],
-    pH: [5.5, 6.5], // pH範囲
+    pH: [5.5, 6.5],
   },
   "hyphae(菌糸)": {
     temperature: [22, 28],
     humidity: [85, 95],
     nutrition: [20, 50],
-    pH: [5.5, 6.5], // pH範囲
+    pH: [5.5, 6.5],
   },
   "mycelium(菌糸体)": {
     temperature: [24, 30],
     humidity: [85, 100],
     nutrition: [50, 80],
-    pH: [5.5, 6.5], // pH範囲
+    pH: [5.5, 6.5],
   },
   "fruiting(子実体形成)": {
     temperature: [18, 24],
     humidity: [90, 100],
     nutrition: [80, 100],
-    pH: [5.5, 6.5], // pH範囲
+    pH: [5.5, 6.5],
   },
   "complete(成熟)": {
     temperature: [0, 100],
     humidity: [0, 100],
     nutrition: [0, 100],
-    pH: [0, 100], // pH範囲
+    pH: [0, 100],
   },
 };
 
@@ -69,22 +67,12 @@ export const stageConditions: Record<
 export const growthHistory: { stage: GrowthStage; params: GrowthParameters }[] =
   [];
 
-// 指定された段階に進めるかどうかを判定
+// すべての段階でパラメーターを無視して進行可能とする
 export const canAdvanceStage = (
   stage: GrowthStage,
   params: GrowthParameters
 ): boolean => {
-  const cond = stageConditions[stage];
-  return (
-    params.温度 >= cond.temperature[0] &&
-    params.温度 <= cond.temperature[1] &&
-    params.湿度 >= cond.humidity[0] &&
-    params.湿度 <= cond.humidity[1] &&
-    params.栄養 >= cond.nutrition[0] &&
-    params.栄養 <= cond.nutrition[1] &&
-    params.pH >= cond.pH[0] &&
-    params.pH <= cond.pH[1]
-  );
+  return true;
 };
 
 // 自動で次の段階に進めるか判定して返す

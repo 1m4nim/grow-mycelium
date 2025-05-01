@@ -1,10 +1,12 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useMyceliumStore } from "./MyceliumStore";
 import GrowthHistoryList from "./GrowthHistoryList";
 import useFungusDiscovery from "./useFungusDiscovery";
 import "./MyceliumGrowth.css";
 import { Fungus } from "./MyceliumStore";
+import WikipediaFungusImage from "./WikipediaFungusImage";
 
+// 成長パラメータと範囲設定
 export interface GrowthParameters {
   温度: number;
   湿度: number;
@@ -19,20 +21,11 @@ export type GrowthStage =
   | "fruiting(子実体形成)"
   | "mature(成熟)";
 
+// 成長履歴
 export type GrowthHistoryEntry = {
   stage: GrowthStage;
   params: GrowthParameters;
   timestamp: Date;
-};
-
-const paramRange: Record<
-  keyof GrowthParameters,
-  { min: number; max: number; step: number }
-> = {
-  温度: { min: 0, max: 50, step: 1 },
-  湿度: { min: 0, max: 100, step: 1 },
-  栄養: { min: 0, max: 100, step: 1 },
-  pH: { min: 0, max: 14, step: 0.1 },
 };
 
 const MyceliumGrowth = () => {
@@ -45,97 +38,74 @@ const MyceliumGrowth = () => {
   } | null>(null);
   const [discoveredFungus, setDiscoveredFungus] = useState<Fungus | null>(null);
   const [growthHistory, setGrowthHistory] = useState<GrowthHistoryEntry[]>([]);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 自動成長のタイマー制御
-  useEffect(() => {
-    if (data.currentStage === "mature(成熟)") {
-      clearInterval(intervalRef.current!);
-      intervalRef.current = null;
-      return;
-    }
-    const interval = setInterval(grow, 5000);
-    intervalRef.current = interval;
-    return () => clearInterval(interval);
-  }, [data.currentStage, grow]);
-
+  // 菌類発見のカスタムフック
   useFungusDiscovery(data.currentStage, setDiscoveredFungus);
 
-  // 成長手動トリガー & 履歴保存
-  const handleGrow = () => {
-    grow();
-    setGrowthHistory((prev) => [
-      ...prev,
-      {
-        stage: data.currentStage,
-        params: data.parameters,
-        timestamp: new Date(),
-      },
-    ]);
+  // Wikipedia からの情報取得
+  const fetchFungusInfoByName = async (fungusName: string) => {
+    try {
+      // Wikipedia APIを使って情報を取得
+      const pageRes = await fetch(
+        `https://en.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages&exintro=&explaintext=&titles=${encodeURIComponent(
+          fungusName
+        )}&format=json&origin=*`
+      );
+      const pageData = await pageRes.json();
+      const pages = pageData.query.pages;
+
+      if (!pages || Object.keys(pages).length === 0) {
+        console.error("No page data found.");
+        return;
+      }
+
+      const pageKey = Object.keys(pages)[0];
+      const pageDetails = pages[pageKey];
+
+      const englishExtract =
+        pageDetails.extract || "No English description found.";
+      const image = pageDetails.thumbnail?.source || "";
+
+      setFungusInfo({
+        name: fungusName,
+        image,
+        description: englishExtract,
+        englishDescription: englishExtract,
+      });
+    } catch (err) {
+      console.error("Wikipediaの取得エラー:", err);
+    }
   };
 
-  // Wikipediaから菌類の情報を取得
+  // 自動成長のためのsetInterval
   useEffect(() => {
-    console.log("Stage:", data.currentStage);
-    console.log("DiscoveredFungus:", data.discoveredFungus);
+    // 成長が成熟になったら自動成長を止める
+    if (data.currentStage === "mature(成熟)") return;
 
-    if (
-      fungusInfo ||
-      data.currentStage !== "fruiting(子実体形成)" ||
-      !data.discoveredFungus
-    ) {
-      return;
-    }
+    const intervalId = setInterval(() => {
+      grow(); // 成長を進める
+    }, 5000); // 5秒ごとに成長
 
-    const fetchFungusInfo = async () => {
-      try {
-        const randomPageRes = await fetch(
-          `https://en.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&format=json&origin=*`
-        );
-        const randomTitle = (await randomPageRes.json()).query.random[0].title;
-
-        const pageRes = await fetch(
-          `https://en.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages&exintro=&explaintext=&titles=${randomTitle}&format=json&origin=*`
-        );
-        const pageData = await pageRes.json();
-        const pages = pageData.query.pages;
-        const pageKey = Object.keys(pages)[0];
-        const page = pages[pageKey];
-
-        const englishExtract = page.extract || "No English description found.";
-        const image = page.thumbnail?.source || "";
-
-        const jaSearchRes = await fetch(
-          `https://ja.wikipedia.org/w/api.php?action=query&list=search&srsearch=${randomTitle}&format=json&origin=*`
-        );
-        const jaSearchData = await jaSearchRes.json();
-        let jaDescription = "日本語での説明は見つかりませんでした。";
-
-        if (jaSearchData.query.search.length > 0) {
-          const jaTitle = jaSearchData.query.search[0].title;
-          const jaPageRes = await fetch(
-            `https://ja.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=&explaintext=&titles=${jaTitle}&format=json&origin=*`
-          );
-          const jaPageData = await jaPageRes.json();
-          const jaPages = jaPageData.query.pages;
-          const jaPageKey = Object.keys(jaPages)[0];
-          const jaPage = jaPages[jaPageKey];
-          jaDescription = jaPage.extract || jaDescription;
-        }
-
-        setFungusInfo({
-          name: randomTitle,
-          image,
-          description: jaDescription,
-          englishDescription: englishExtract,
-        });
-      } catch (err) {
-        console.error("Wikipediaの取得エラー:", err);
-      }
+    // クリーンアップ
+    return () => {
+      clearInterval(intervalId); // コンポーネントがアンマウントされたらintervalをクリア
     };
+  }, [data.currentStage, grow]);
 
-    fetchFungusInfo();
-  }, [data.currentStage, data.discoveredFungus, fungusInfo]);
+  // 成長ステージ変更時に情報を取得
+  useEffect(() => {
+    if (discoveredFungus) {
+      // 発見された菌類の名前を使って情報を取得
+      fetchFungusInfoByName(discoveredFungus.name);
+    }
+  }, [data.currentStage, discoveredFungus]); // 依存配列に discoveredFungus を追加
+
+  // リセットボタンが押されたとき
+  const handleReset = () => {
+    reset();
+    setFungusInfo(null); // 菌類情報をリセット
+    setDiscoveredFungus(null); // 発見された菌類情報もリセット
+  };
 
   return (
     <div className="mycelium-growth-container">
@@ -144,75 +114,46 @@ const MyceliumGrowth = () => {
 
       <section>
         <h3>成長パラメーター</h3>
-        {Object.keys(paramRange).map((key) => {
-          const param = key as keyof GrowthParameters;
-          const label =
-            param === "温度"
-              ? `🌡️ 温度: ${data.parameters[param]}℃`
-              : param === "湿度"
-              ? `💧 湿度: ${data.parameters[param]}%`
-              : param === "栄養"
-              ? `🍽️ 栄養: ${data.parameters[param]}`
-              : `⚗️ pH: ${data.parameters[param]}`;
-
+        {Object.keys(data.parameters).map((paramKey) => {
+          const param = paramKey as keyof GrowthParameters;
+          const label = `${param} : ${data.parameters[param]}`;
           return (
-            <div key={param} style={{ marginBottom: "1rem" }}>
-              <label style={{ display: "block", marginBottom: "0.5rem" }}>
-                {label}
-              </label>
+            <div key={param}>
+              <label>{label}</label>
               <input
                 type="range"
-                {...paramRange[param]}
+                min={0}
+                max={100}
+                step={1}
                 value={data.parameters[param]}
                 onChange={(e) => setParameter(param, Number(e.target.value))}
-                style={{ width: "100%" }}
               />
             </div>
           );
         })}
 
-        <button onClick={handleGrow} style={{ fontSize: "42px" }}>
-          {!(
-            fungusInfo &&
-            ["fruiting(子実体形成)", "mature(成熟)"].includes(data.currentStage)
-          )
-            ? "成長中"
-            : ""}
-        </button>
-
         {data.currentStage === "mature(成熟)" && (
-          <button onClick={reset} style={{ marginTop: "1rem" }}>
-            🔁 リセット
-          </button>
+          <button onClick={handleReset}>リセット</button>
         )}
       </section>
 
-      {fungusInfo &&
-        ["fruiting(子実体形成)", "mature(成熟)"].includes(
-          data.currentStage
-        ) && (
-          <section>
-            <h3>🍄 発見されたキノコ</h3>
-            <p>
-              <strong>名前:</strong> {fungusInfo.name}
-            </p>
-            {fungusInfo.image && (
-              <img
-                src={fungusInfo.image}
-                alt={fungusInfo.name}
-                style={{ maxWidth: "300px" }}
-              />
-            )}
-            <p>
-              <strong>日本語の説明:</strong>
-            </p>
-            <p>{fungusInfo.description}</p>
-            <p>
-              <strong>English Summary:</strong>
-            </p>
-            <p>{fungusInfo.englishDescription}</p>
-          </section>
-        )}
+      {fungusInfo && (
+        <section>
+          <h3>🍄 発見されたキノコ</h3>
+          <p>
+            <strong>名前:</strong> {fungusInfo.name}
+          </p>
+          <WikipediaFungusImage name={fungusInfo.name} />
+          <p>
+            <strong>日本語の説明:</strong>
+            {fungusInfo.description}
+          </p>
+          <p>
+            <strong>English Summary:</strong>
+            {fungusInfo.englishDescription}
+          </p>
+        </section>
+      )}
 
       <GrowthHistoryList history={growthHistory} />
     </div>

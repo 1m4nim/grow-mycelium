@@ -64,7 +64,7 @@ const Page = () => {
           <p>{fungus.content}</p>
         </div>
       ) : (
-        <p>きのこの情報を読み込んでいます...</p>
+        <p></p>
       )}
 
       <MyceliumGrowth />
