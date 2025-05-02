@@ -28,68 +28,30 @@ export type GrowthHistoryEntry = {
 
 const MyceliumGrowth = () => {
   const { data, setParameter, grow, reset } = useMyceliumStore();
-  const [fungusInfo, setFungusInfo] = useState<{
-    name: string;
-    image: string;
-    description: string;
-    englishDescription: string;
-  } | null>(null);
-  const [discoveredFungus, setDiscoveredFungus] = useState<Fungus | null>(null);
   const [growthHistory, setGrowthHistory] = useState<GrowthHistoryEntry[]>([]);
 
-  useFungusDiscovery(data.currentStage, setDiscoveredFungus);
-
-  const fetchFungusInfoByName = async (fungusName: string) => {
-    try {
-      const pageRes = await fetch(
-        `https://en.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages&exintro=&explaintext=&titles=${encodeURIComponent(
-          fungusName
-        )}&format=json&origin=*`
-      );
-      const pageData = await pageRes.json();
-      const pages = pageData.query.pages;
-
-      if (!pages || Object.keys(pages).length === 0) {
-        console.error("No page data found.");
-        return;
-      }
-
-      const pageKey = Object.keys(pages)[0];
-      const pageDetails = pages[pageKey];
-
-      const englishExtract =
-        pageDetails.extract || "No English description found.";
-      const image = pageDetails.thumbnail?.source || "";
-
-      setFungusInfo({
-        name: fungusName,
-        image,
-        description: englishExtract,
-        englishDescription: englishExtract,
-      });
-    } catch (err) {
-      console.error("Wikipediaの取得エラー:", err);
-    }
-  };
+  // useFungusDiscoveryフックを利用
+  const { discoveredFungus, fetchFungusFromWikipedia } = useFungusDiscovery();
 
   useEffect(() => {
     if (data.currentStage === "mature(成熟)") return;
+
     const intervalId = setInterval(() => {
       grow();
     }, 5000);
     return () => clearInterval(intervalId);
   }, [data.currentStage, grow]);
 
+  // 成長ステージが「子実体形成」の場合にWikipediaからキノコ情報を取得
   useEffect(() => {
-    if (discoveredFungus) {
-      fetchFungusInfoByName(discoveredFungus.name);
+    if (data.currentStage === "fruiting(子実体形成)") {
+      fetchFungusFromWikipedia();
     }
-  }, [data.currentStage, discoveredFungus]);
+  }, [data.currentStage, fetchFungusFromWikipedia]);
 
+  // リセットボタン処理
   const handleReset = () => {
     reset();
-    setFungusInfo(null);
-    setDiscoveredFungus(null);
   };
 
   return (
@@ -97,6 +59,7 @@ const MyceliumGrowth = () => {
       <h1>菌類を育てよう</h1>
       <h2>現在のステージ: {data.currentStage}</h2>
 
+      {/* 成長パラメーター */}
       <section>
         <h3>成長パラメーター</h3>
         {Object.keys(data.parameters).map((paramKey) => {
@@ -122,22 +85,24 @@ const MyceliumGrowth = () => {
         )}
       </section>
 
-      {fungusInfo && (
+      {/* 発見されたキノコの情報 */}
+      {discoveredFungus && (
         <section>
           <h3>🍄 発見されたキノコ</h3>
           <p>
-            <strong>名前:</strong> {fungusInfo.name}
+            <strong>名前:</strong> {discoveredFungus.name}
           </p>
-          <WikipediaFungusImage name={fungusInfo.name} src={fungusInfo.image} />
+          <WikipediaFungusImage
+            name={discoveredFungus.name}
+            src={discoveredFungus.imageUrl || ""} // imageUrlがundefinedの場合には空文字を渡す
+          />
           <p>
             <strong>日本語の説明:</strong>
-            {fungusInfo.description
-              ? fungusInfo.description
-              : "説明はありません"}
+            {discoveredFungus.descriptionJa || "説明はありません"}
           </p>
           <p>
             <strong>English Summary:</strong>
-            {fungusInfo.englishDescription}
+            {discoveredFungus.description}
           </p>
         </section>
       )}

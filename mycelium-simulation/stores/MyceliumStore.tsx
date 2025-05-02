@@ -18,6 +18,7 @@ export type Parameters = {
 export type Fungus = {
   name: string;
   description: string;
+  descriptionJa: string; // 日本語訳を追加
   imageUrl?: string;
 };
 
@@ -137,38 +138,24 @@ export const useMyceliumStore = create<MyceliumStore>((set) => ({
       const imageUrl = page[pageId].thumbnail?.source || ""; // Wikipediaの画像URLを動的に取得
 
       // 各ステージごとに説明と画像を設定
-      let fungusInfo = { name: "", description: "", imageUrl: "" };
+      let fungusInfo: Fungus = {
+        name: title,
+        description: extract,
+        descriptionJa: "日本語訳なし", // 必要なら日本語訳も追加
+        imageUrl: imageUrl || "https://example.com/default-image.jpg", // Wikipediaから画像URLを取得
+      };
 
+      // ステージ名に応じて追加の処理を行うことができます
       if (title === "spore(胞子)") {
-        fungusInfo = {
-          name: "Spore (胞子)",
-          description: extract,
-          imageUrl: "https://example.com/spore-image.jpg", // Wikipediaから画像URLを取得
-        };
+        fungusInfo.name = "Spore (胞子)";
       } else if (title === "hyphae(菌糸)") {
-        fungusInfo = {
-          name: "Hyphae (菌糸)",
-          description: extract,
-          imageUrl: "https://example.com/hyphae-image.jpg",
-        };
+        fungusInfo.name = "Hyphae (菌糸)";
       } else if (title === "mycelium(菌糸体)") {
-        fungusInfo = {
-          name: "Mycelium (菌糸体)",
-          description: extract,
-          imageUrl: "https://example.com/mycelium-image.jpg",
-        };
+        fungusInfo.name = "Mycelium (菌糸体)";
       } else if (title === "fruiting(子実体形成)") {
-        fungusInfo = {
-          name: "Fruiting (子実体形成)",
-          description: extract,
-          imageUrl: "https://example.com/fruiting-image.jpg",
-        };
+        fungusInfo.name = "Fruiting (子実体形成)";
       } else if (title === "mature(成熟)") {
-        fungusInfo = {
-          name: "Mature (成熟)",
-          description: extract,
-          imageUrl: "https://example.com/mature-image.jpg",
-        };
+        fungusInfo.name = "Mature (成熟)";
       }
 
       // `discoveredFungus`に情報を設定
